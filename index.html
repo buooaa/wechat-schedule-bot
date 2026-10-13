@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>模块化定时推送工作台</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f4f1ea; margin: 0; padding: 12px; color: #333; }
+  .wrap { max-width: 600px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 6px 0 12px; }
+  .card { background: #fff; border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; gap: 8px; }
+  .card-header h2 { font-size: 16px; margin: 0; }
+  .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  input[type=text], input[type=password], input[type=time], input[type=number], select, textarea {
+    border: 1px solid #ddd; border-radius: 8px; padding: 8px 10px; font-size: 14px; width: 100%; background: #fff; }
+  .pname { flex: 1; }
+  .pmins { width: 68px !important; text-align: center; }
+  .unit { font-size: 13px; color: #888; white-space: nowrap; }
+  .iconbtn { border: 1px solid #ddd; background: #fff; border-radius: 8px; width: 34px; height: 36px; cursor: pointer; flex: none; }
+  .iconbtn.del { color: #c44; }
+  .btn { border: none; border-radius: 10px; padding: 9px 14px; font-size: 14px; cursor: pointer; background: #eee; font-weight: 500; }
+  .btn.primary { background: #7c5cbf; color: #fff; width: 100%; padding: 12px; font-size: 15px; margin-top: 6px; }
+  .btn.success { background: #2e9e6b; color: #fff; width: 100%; padding: 12px; font-size: 15px; margin-top: 8px; }
+  .btn.add-mod { background: #3498db; color: #fff; width: 100%; padding: 11px; font-size: 15px; margin-bottom: 12px; border: 2px dashed #2980b9; }
+  .btn.warnbtn { background: #e67e22; color: #fff; padding: 6px 10px; font-size: 12px; }
+  label.line { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+  label.line input, label.line select { width: 160px; }
+  .switch { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #666; cursor: pointer; white-space: nowrap; }
+  .switch input { width: 16px; height: 16px; accent-color: #2e9e6b; }
+  .days-box { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0 10px; }
+  .day-tag { font-size: 12px; padding: 4px 8px; border-radius: 6px; border: 1px solid #ddd; cursor: pointer; user-select: none; }
+  .day-tag.active { background: #7c5cbf; color: #fff; border-color: #7c5cbf; }
+  pre { background: #f8f9fa; padding: 10px; border-radius: 8px; font-size: 13px; white-space: pre-wrap; border: 1px solid #eee; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>⚙️ 模块化定时推送工作台</h1>
+
+  <!-- GitHub 云端连接 -->
+  <div class="card">
+    <div class="card-header"><h2>🔗 GitHub 云端连接</h2></div>
+    <div class="row"><input type="text" id="ghRepo" placeholder="仓库名，如: username/wechat-pusher"></div>
+    <div class="row">
+      <input type="password" id="ghToken" placeholder="GitHub Token (勾选 repo 和 workflow)">
+      <button class="btn" onclick="loadFromGitHub()" style="white-space:nowrap">🔄 拉取云端配置</button>
+    </div>
+  </div>
+
+  <!-- 核心模块：化妆排班 -->
+  <div class="card">
+    <div class="card-header">
+      <h2>💄 专属模块：化妆自动轮转排班</h2>
+      <label class="switch"><input type="checkbox" id="m_makeup_en" checked onchange="renderPreview()"> 启用</label>
+    </div>
+    <label class="line">跟随哪个定时批次发送
+      <select id="makeup_slot" onchange="renderPreview()">
+        <option value="morning">☀️ 早间场推送</option>
+        <option value="evening">🌙 晚间场推送</option>
+        <option value="all">🔔 每次都发</option>
+      </select>
+    </label>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <span style="font-size:13px; color:#666;">顺序 = 今日化妆顺序</span>
+      <button class="btn warnbtn" onclick="rotateRoster()">🔄 模拟明日轮转（末位变首位）</button>
+    </div>
+    <div id="roster"></div>
+    <div class="row" style="margin-top:8px;">
+      <input type="text" id="newName" placeholder="新增姓名，如：白羊">
+      <button class="btn" onclick="addPerson()" style="white-space:nowrap">+ 添加人员</button>
+    </div>
+    <hr style="border:none; border-top:1px solid #eee; margin:12px 0;">
+    <label class="line">必须完成时间 <input type="time" id="deadline" value="04:40" onchange="renderPreview()"></label>
+    <label class="line">每人之间间隔(分) <input type="number" id="gap" value="0" min="0" max="30" onchange="renderPreview()"></label>
+    <label class="line">发完后自动顺延明日名单 <input type="checkbox" id="autoRotate" checked style="width:18px;height:18px;"></label>
+  </div>
+
+  <!-- 动态自定义模块容器 -->
+  <div id="customModulesContainer"></div>
+
+  <!-- 一键添加新模块按钮 -->
+  <button class="btn add-mod" onclick="addCustomModule()">➕ 新增一个自定义消息模块（待办 / 通知 / 提醒）</button>
+
+  <!-- 预览与操作 -->
+  <div class="card">
+    <div class="card-header">
+      <h2>👀 消息组装预览</h2>
+      <select id="previewSlot" style="width:auto;" onchange="renderPreview()">
+        <option value="morning">预览：☀️ 早间场内容</option>
+        <option value="evening">预览：🌙 晚间场内容</option>
+      </select>
+    </div>
+    <pre id="previewBox"></pre>
+    <button class="btn primary" onclick="saveToGitHub()">💾 保存所有模块配置到 GitHub</button>
+    <div class="row" style="margin-top:8px;">
+      <button class="btn success" style="margin-top:0;" onclick="triggerPushNow('morning')">🚀 立即推送【早间场】</button>
+      <button class="btn success" style="margin-top:0; background:#2c3e50;" onclick="triggerPushNow('evening')">🌙 立即推送【晚间场】</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let config = {
+  makeup: {
+    enabled: true, schedule_slot: "morning", mode: "backward", deadline: "04:40", startTime: "02:00", gap: 0, autoRotate: true,
+    roster: [
+      { name: '川枫', mins: 40 }, { name: 'kk', mins: 30 },
+      { name: 'fafa', mins: 30 }, { name: '白羊', mins: 40 }, { name: '一凡', mins: 40 }
+    ]
+  },
+  custom_modules: [
+    { id: "m1", title: "📌 今日必做事项", enabled: true, schedule_slot: "morning", weekdays: [1,2,3,4,5,6,7], content: "1. 开播前检查设备\n2. 核对今日服装与道具" }
+  ]
+};
+let fileSha = "";
+const WEEK_NAMES = ["一", "二", "三", "四", "五", "六", "日"];
+
+document.getElementById('ghRepo').value = localStorage.getItem('gh_repo') || '';
+document.getElementById('ghToken').value = localStorage.getItem('gh_token') || '';
+
+function parseTime(t) { const p = t.split(':'); return (+p[0]) * 60 + (+p[1]); }
+function fmt(m) {
+  let prefix = '';
+  while (m < 0) { m += 1440; prefix = '前一天 '; }
+  m = ((m % 1440) + 1440) % 1440;
+  return prefix + String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+}
+
+function renderUI() {
+  const m = config.makeup;
+  document.getElementById('m_makeup_en').checked = m.enabled;
+  document.getElementById('makeup_slot').value = m.schedule_slot || 'morning';
+  document.getElementById('deadline').value = m.deadline;
+  document.getElementById('gap').value = m.gap;
+  document.getElementById('autoRotate').checked = m.autoRotate;
+
+  const rosterEl = document.getElementById('roster');
+  rosterEl.innerHTML = '';
+  m.roster.forEach((p, i) => {
+    const div = document.createElement('div');
+    div.className = 'row';
+    div.innerHTML = `
+      <button class="iconbtn" onclick="movePerson(${i}, -1)">↑</button>
+      <button class="iconbtn" onclick="movePerson(${i}, 1)">↓</button>
+      <input type="text" class="pname" value="${p.name}" onchange="updatePerson(${i}, 'name', this.value)">
+      <input type="number" class="pmins" value="${p.mins}" onchange="updatePerson(${i}, 'mins', this.value)">
+      <span class="unit">分</span>
+      <button class="iconbtn del" onclick="delPerson(${i})">✕</button>
+    `;
+    rosterEl.appendChild(div);
+  });
+
+  // 渲染所有自定义模块
+  const container = document.getElementById('customModulesContainer');
+  container.innerHTML = '';
+  (config.custom_modules || []).forEach((mod, idx) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const daysHtml = [1,2,3,4,5,6,7].map(d => {
+      const active = (mod.weekdays || [1,2,3,4,5,6,7]).includes(d) ? 'active' : '';
+      return `<span class="day-tag ${active}" onclick="toggleDay(${idx}, ${d})">周${WEEK_NAMES[d-1]}</span>`;
+    }).join('');
+
+    card.innerHTML = `
+      <div class="card-header">
+        <input type="text" value="${mod.title}" style="font-weight:bold; width:65%;" onchange="updateMod(${idx}, 'title', this.value)" placeholder="模块标题，如：📢 服装提醒">
+        <div style="display:flex; gap:8px; align-items:center;">
+          <label class="switch"><input type="checkbox" ${mod.enabled ? 'checked' : ''} onchange="updateMod(${idx}, 'enabled', this.checked)"> 启用</label>
+          <button class="iconbtn del" onclick="removeCustomModule(${idx})" title="删除此模块">🗑️</button>
+        </div>
+      </div>
+      <label class="line">发送批次
+        <select onchange="updateMod(${idx}, 'schedule_slot', this.value)">
+          <option value="morning" ${mod.schedule_slot==='morning'?'selected':''}>☀️ 早间场推送</option>
+          <option value="evening" ${mod.schedule_slot==='evening'?'selected':''}>🌙 晚间场推送</option>
+          <option value="all" ${mod.schedule_slot==='all'?'selected':''}>🔔 每次都发</option>
+        </select>
+      </label>
+      <div style="font-size:13px; color:#666; margin-top:4px;">生效日期（点亮即发送）：</div>
+      <div class="days-box">${daysHtml}</div>
+      <textarea rows="3" placeholder="填写该模块要推送的具体内容..." oninput="updateMod(${idx}, 'content', this.value)">${mod.content || ''}</textarea>
+    `;
+    container.appendChild(card);
+  });
+
+  renderPreview();
+}
+
+function updateMod(idx, key, val) {
+  config.custom_modules[idx][key] = val;
+  renderPreview();
+}
+function toggleDay(idx, dayNum) {
+  let days = config.custom_modules[idx].weekdays || [1,2,3,4,5,6,7];
+  if (days.includes(dayNum)) days = days.filter(d => d !== dayNum);
+  else days.push(dayNum);
+  config.custom_modules[idx].weekdays = days.sort();
+  renderUI();
+}
+function addCustomModule() {
+  config.custom_modules.push({
+    id: "m_" + Date.now(),
+    title: "🔔 新消息模块",
+    enabled: true,
+    schedule_slot: "morning",
+    weekdays: [1,2,3,4,5,6,7],
+    content: "在这里输入你要定时发送的内容..."
+  });
+  renderUI();
+}
+function removeCustomModule(idx) {
+  if (confirm("确定要删除这个消息模块吗？")) {
+    config.custom_modules.splice(idx, 1);
+    renderUI();
+  }
+}
+
+function movePerson(i, dir) {
+  const r = config.makeup.roster;
+  if (i + dir < 0 || i + dir >= r.length) return;
+  [r[i], r[i+dir]] = [r[i+dir], r[i]];
+  renderUI();
+}
+function updatePerson(i, key, val) {
+  config.makeup.roster[i][key] = key === 'mins' ? (parseInt(val,10)||40) : val.trim();
+  renderPreview();
+}
+function delPerson(i) { config.makeup.roster.splice(i, 1); renderUI(); }
+function addPerson() {
+  const inp = document.getElementById('newName');
+  const name = inp.value.trim();
+  if (!name) return;
+  const mins = (name.toLowerCase() === 'kk' || name.toLowerCase() === 'fafa') ? 30 : 40;
+  config.makeup.roster.push({ name, mins });
+  inp.value = '';
+  renderUI();
+}
+function rotateRoster() {
+  const r = config.makeup.roster;
+  if (r.length > 1) { r.unshift(r.pop()); renderUI(); }
+}
+
+function syncBaseConfig() {
+  const m = config.makeup;
+  m.enabled = document.getElementById('m_makeup_en').checked;
+  m.schedule_slot = document.getElementById('makeup_slot').value;
+  m.deadline = document.getElementById('deadline').value;
+  m.gap = parseInt(document.getElementById('gap').value, 10) || 0;
+  m.autoRotate = document.getElementById('autoRotate').checked;
+}
+
+function renderPreview() {
+  syncBaseConfig();
+  const targetSlot = document.getElementById('previewSlot').value;
+  const m = config.makeup;
+  let blocks = [];
+
+  if (m.enabled && (m.schedule_slot === targetSlot || m.schedule_slot === 'all') && m.roster.length) {
+    let t = parseTime(m.deadline);
+    let rev = [];
+    for (let i = m.roster.length - 1; i >= 0; i--) {
+      const p = m.roster[i];
+      rev.unshift(`${fmt(t - p.mins)}–${fmt(t)} ${p.name} (${p.mins}′)`);
+      t = t - p.mins - m.gap;
+    }
+    blocks.push(`【💄 化妆排班（${m.deadline}前收工）】\n` + rev.join('\n'));
+  }
+
+  (config.custom_modules || []).forEach(mod => {
+    if (mod.enabled && (mod.schedule_slot === targetSlot || mod.schedule_slot === 'all') && mod.content.trim()) {
+      blocks.push(`【${mod.title}】\n${mod.content.trim()}`);
+    }
+  });
+
+  document.getElementById('previewBox').textContent = blocks.join('\n\n') || `（当前【${targetSlot === 'morning' ? '早间场' : '晚间场'}】没有启用任何模块）`;
+}
+
+async function loadFromGitHub() {
+  const repo = document.getElementById('ghRepo').value.trim();
+  const token = document.getElementById('ghToken').value.trim();
+  if (!repo || !token) return alert('请先填写 GitHub 仓库名和 Token');
+  localStorage.setItem('gh_repo', repo); localStorage.setItem('gh_token', token);
+
+  const res = await fetch(`https://api.github.com/repos/${repo}/contents/config.json`, {
+    headers: { 'Authorization': `token ${token}` }
+  });
+  if (!res.ok) return alert('拉取失败，请检查仓库名或 Token');
+  const data = await res.json();
+  fileSha = data.sha;
+  config = JSON.parse(decodeURIComponent(escape(atob(data.content))));
+  renderUI();
+  alert('✅ 已加载云端最新模块配置！');
+}
+
+async function saveToGitHub(silent = false) {
+  syncBaseConfig();
+  const repo = document.getElementById('ghRepo').value.trim();
+  const token = document.getElementById('ghToken').value.trim();
+  if (!repo || !token) return alert('请先填写 GitHub 仓库名和 Token');
+
+  if (!fileSha) {
+    const r = await fetch(`https://api.github.com/repos/${repo}/contents/config.json`, {
+      headers: { 'Authorization': `token ${token}` }
+    });
+    if (r.ok) fileSha = (await r.json()).sha;
+  }
+
+  const contentBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(config, null, 2))));
+  const res = await fetch(`https://api.github.com/repos/${repo}/contents/config.json`, {
+    method: 'PUT',
+    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: 'Update dynamic modules via Web UI', content: contentBase64, sha: fileSha })
+  });
+  if (res.ok) {
+    fileSha = (await res.json()).content.sha;
+    if (!silent) alert('✅ 所有模块已保存到 GitHub！');
+    return true;
+  } else {
+    alert('❌ 保存失败');
+    return false;
+  }
+}
+
+async function triggerPushNow(slotName) {
+  const saved = await saveToGitHub(true);
+  if (!saved) return;
+  const repo = document.getElementById('ghRepo').value.trim();
+  const token = document.getElementById('ghToken').value.trim();
+  const res = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/wechat_push.yml/dispatches`, {
+    method: 'POST',
+    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ref: 'main', inputs: { slot: slotName } })
+  });
+  if (res.ok) alert(`🚀 已触发【${slotName === 'morning' ? '早间场' : '晚间场'}】微信推送！`);
+  else alert('触发失败，请检查 workflow 配置');
+}
+
+renderUI();
+</script>
+</body>
+</html>
