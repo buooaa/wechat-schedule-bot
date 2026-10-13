@@ -1,0 +1,45 @@
+name: WeChat Official Push
+
+on:
+  schedule:
+    - cron: '45 0 * * *'  # 每天早间场 (UTC 00:45 = 北京时间 08:45 / 日本时间 09:45)
+    - cron: '0 13 * * *'  # 每天晚间场 (UTC 13:00 = 北京时间 21:00 / 日本时间 22:00)
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: '推送批次 (morning 或 evening)'
+        required: false
+        default: 'morning'
+
+permissions:
+  contents: write
+
+jobs:
+  push-and-rotate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run push & rotate roster
+        env:
+          WX_APPID: ${{ secrets.WX_APPID }}
+          WX_APPSECRET: ${{ secrets.WX_APPSECRET }}
+          WX_TEMPLATE_ID: ${{ secrets.WX_TEMPLATE_ID }}
+          PUSH_SLOT: ${{ github.event.inputs.slot }}
+        run: python main.py
+
+      - name: Commit updated roster
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Action Bot"
+          git add config.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "🔄 自动顺延化妆排班顺序" && git push)
