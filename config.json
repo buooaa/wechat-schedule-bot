@@ -1,0 +1,36 @@
+{
+  "makeup": {
+    "enabled": true,
+    "schedule_slot": "morning",
+    "mode": "backward",
+    "deadline": "04:40",
+    "startTime": "02:00",
+    "gap": 0,
+    "autoRotate": true,
+    "roster": [
+      { "name": "川枫", "mins": 40 },
+      { "name": "kk", "mins": 30 },
+      { "name": "fafa", "mins": 30 },
+      { "name": "白羊", "mins": 40 },
+      { "name": "一凡", "mins": 40 }
+    ]
+  },
+  "custom_modules": [
+    {
+      "id": "m1",
+      "title": "📌 今日必做事项",
+      "enabled": true,
+      "schedule_slot": "morning",
+      "weekdays": [1, 2, 3, 4, 5, 6, 7],
+      "content": "1. 开播前检查声卡与灯光\n2. 核对今日服装与道具"
+    },
+    {
+      "id": "m2",
+      "title": "🌙 晚间复盘与交接",
+      "enabled": true,
+      "schedule_slot": "evening",
+      "weekdays": [1, 2, 3, 4, 5, 6, 7],
+      "content": "请大家在 22:00 前把今日直播数据截图发到群里！"
+    }
+  ]
+}
