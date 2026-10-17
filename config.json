@@ -9,6 +9,10 @@
     "autoRotate": true,
     "roster": [
       {
+        "name": "白羊",
+        "mins": 40
+      },
+      {
         "name": "一凡",
         "mins": 40
       },
@@ -23,10 +27,6 @@
       {
         "name": "fafa",
         "mins": 30
-      },
-      {
-        "name": "白羊",
-        "mins": 40
       }
     ]
   },
